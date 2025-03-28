@@ -28,12 +28,14 @@ tile_names = ["C_in", "C_out_C", "C_out_L", "C_out_R", "Side", "terrain_1", "ter
 for i, color in enumerate(colors):
     tiles[i].fill(color)
 
-# Grille vide (niveau et hauteur)
+# Grille vide (niveau, hauteur et rotation)
 level = [[-1 for _ in range(grid_width)] for _ in range(grid_height)]
 height_map = [[0 for _ in range(grid_width)] for _ in range(grid_height)]
+rotation_map = [[0 for _ in range(grid_width)] for _ in range(grid_height)]  # Rotation en degrés (0, 90, 180, 270)
 
 current_tile = 0
 current_height = 0
+current_rotation = 0  # Rotation actuelle en degrés (0, 90, 180, 270)
 
 # Fenêtre
 screen = pygame.display.set_mode((screen_width, screen_height))
@@ -55,14 +57,38 @@ def create_shadow(tile_size):
         pygame.draw.line(shadow_surface, (0, 0, 0, intensity), (0, y), (tile_size, y))
     return shadow_surface
 
-def draw_tile_with_shadow(tile, x, y):
+def draw_tile_with_shadow(tile, x, y, rotation=0):
     # Créer une ombre avec dégradé
     shadow_surface = create_shadow(tile_size)
 
     # Définir un léger décalage pour l'ombre
     shadow_offset = 5  # Décalage de l'ombre
     screen.blit(shadow_surface, (x + shadow_offset, y + shadow_offset))  # Ombre
-    screen.blit(tile, (x, y))  # Tuile principale
+
+    # Appliquer la rotation à la tuile
+    rotated_tile = pygame.transform.rotate(tile, rotation)
+    rotated_rect = rotated_tile.get_rect(center=(x + tile_size // 2, y + tile_size // 2))
+    screen.blit(rotated_tile, rotated_rect.topleft)
+
+def draw_rotation_indicator(x, y, rotation):
+    match rotation:
+        case 0:  # Ligne en bas
+            start_pos = (x, y + tile_size - 2)
+            end_pos = (x + tile_size, y + tile_size - 2)
+        case 90:  # Ligne à droite
+            start_pos = (x + tile_size - 2, y)
+            end_pos = (x + tile_size - 2, y + tile_size)
+        case 180:  # Ligne en haut
+            start_pos = (x, y + 2)
+            end_pos = (x + tile_size, y + 2)
+        case 270:  # Ligne à gauche
+            start_pos = (x + 2, y)
+            end_pos = (x + 2, y + tile_size)
+        case _:  # Cas par défaut (rotation invalide)
+            return  # Ne rien dessiner si la rotation est invalide
+
+    # Dessiner la ligne noire
+    pygame.draw.line(screen, BLACK, start_pos, end_pos, 2)
 
 def draw_ui():
     pygame.draw.rect(screen, WHITE, (screen_width - ui_width, 0, ui_width, screen_height))
@@ -84,6 +110,12 @@ def draw_ui():
         text = font.render(str(i), True, BLACK)
         screen.blit(text, (screen_width - ui_width + 30, y_pos + 5))
 
+    # Bouton de rotation
+    rotation_button_y = screen_height - 125
+    pygame.draw.rect(screen, GRAY, (screen_width - ui_width + 65, rotation_button_y, 130, 30))
+    rotation_text = font.render(f"Rotation: {current_rotation}°", True, BLACK)
+    screen.blit(rotation_text, (screen_width - ui_width + 75, rotation_button_y + 5))
+
     # Bouton de sauvegarde
     save_button_y = screen_height - 50
     pygame.draw.rect(screen, GRAY, (screen_width - ui_width + 10, save_button_y, 180, 30))
@@ -103,11 +135,12 @@ def export_map_to_json(file_path):
         for x in range(grid_width):
             tile_type = level[y][x]
             tile_height = height_map[y][x]
+            tile_rotation = rotation_map[y][x] // 90  # Convertir la rotation en index (0, 1, 2, 3)
 
             if tile_type == -1:  # Si aucune tuile n'est placée
                 packed_value = 0  # Valeur par défaut
             else:
-                packed_value = (tile_height << 3) | (tile_type & 0b111)  # Encoder hauteur et type
+                packed_value = (tile_height << 5) | (tile_rotation << 3) | (tile_type & 0b111)  # Encoder hauteur, rotation et type
 
             map_data["tiles"].append(packed_value)
 
@@ -154,7 +187,8 @@ while running:
             tile_index = level[y][x]
             pygame.draw.rect(screen, GRAY, (x * tile_size, y * tile_size, tile_size, tile_size), 1)
             if tile_index != -1:
-                draw_tile_with_shadow(tiles[tile_index], x * tile_size, y * tile_size)
+                draw_tile_with_shadow(tiles[tile_index], x * tile_size, y * tile_size, rotation_map[y][x])
+                draw_rotation_indicator(x * tile_size, y * tile_size, rotation_map[y][x])
 
     # Affichage de la grille avec projection isométrique
     for y in range(grid_height):
@@ -183,9 +217,11 @@ while running:
                     if event.button == 1:  # Clic gauche -> Placer un tile
                         level[grid_y][grid_x] = current_tile
                         height_map[grid_y][grid_x] = current_height
-                    elif event.button == 3:  # Clic droit -> Effacer
-                        level[grid_y][grid_x] = -1
-                        height_map[grid_y][grid_x] = 0
+                        rotation_map[grid_y][grid_x] = current_rotation  # Appliquer la rotation actuelle
+                    elif event.button == 3:  # Clic droit -> Tourner la tuile
+                        if level[grid_y][grid_x] != -1:  # Si une tuile est placée
+                            rotation_map[grid_y][grid_x] = (rotation_map[grid_y][grid_x] + 90) % 360
+                            print(f"Rotation de la tuile à ({grid_x}, {grid_y}): {rotation_map[grid_y][grid_x]}°")
 
             else:  # Clic sur l'UI
                 for i in range(len(tiles)):
@@ -201,6 +237,12 @@ while running:
                     if screen_width - ui_width + 10 <= mouse_x <= screen_width - ui_width + 60 and y_pos <= mouse_y <= y_pos + 20:
                         current_height = i
                         print(f"Hauteur sélectionnée: {current_height}")
+
+                # Vérifier si le bouton de rotation est cliqué
+                rotation_button_y = screen_height - 100
+                if screen_width - ui_width + 10 <= mouse_x <= screen_width - ui_width + 190 and rotation_button_y <= mouse_y <= rotation_button_y + 30:
+                    current_rotation = (current_rotation + 90) % 360
+                    print(f"Rotation actuelle: {current_rotation}°")
 
                 # Vérifier si le bouton de sauvegarde est cliqué
                 save_button_y = screen_height - 50
