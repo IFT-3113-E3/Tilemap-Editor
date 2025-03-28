@@ -24,7 +24,7 @@ BLUE = (0, 0, 255)
 tiles = [pygame.Surface((tile_size, tile_size)) for _ in range(8)]
 colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0),
           (255, 165, 0), (128, 0, 128), (0, 255, 255), (192, 192, 192)]
-tile_names = ["Herbe", "Terre", "Eau", "Sable", "Pierre", "Bois", "Lave", "Neige"]
+tile_names = ["C_in", "C_out_C", "C_out_L", "C_out_R", "Side", "terrain_1", "terrain_2", "terrain_3"]
 for i, color in enumerate(colors):
     tiles[i].fill(color)
 
@@ -39,9 +39,12 @@ current_height = 0
 screen = pygame.display.set_mode((screen_width, screen_height))
 pygame.display.set_caption("Tilemap Editor - Isométrique, Cartésien et UI")
 
+iso_grid_height = grid_height * tile_size // 4
+center_offset_y = (screen_height - iso_grid_height) // 2
+
 def cart_to_iso(x, y, h):
     iso_x = (x - y) * tile_size // 2 + screen_width // 5 * 3
-    iso_y = (x + y) * tile_size // 4 - h * (tile_size // 2)
+    iso_y = (x + y) * tile_size // 4 - h * (tile_size // 2) + center_offset_y
     return iso_x, iso_y
 
 def create_shadow(tile_size):
