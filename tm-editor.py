@@ -90,6 +90,12 @@ def draw_rotation_indicator(x, y, rotation):
     # Dessiner la ligne noire
     pygame.draw.line(screen, BLACK, start_pos, end_pos, 2)
 
+def draw_height_indicator(x, y, height):
+    font = pygame.font.Font(None, 24)  # Police pour le texte
+    text = font.render(str(height), True, BLACK)  # Créer le texte avec la hauteur
+    text_rect = text.get_rect(center=(x + tile_size // 2, y + tile_size // 2))  # Centrer le texte
+    screen.blit(text, text_rect)  # Dessiner le texte sur l'écran
+
 def draw_ui():
     pygame.draw.rect(screen, WHITE, (screen_width - ui_width, 0, ui_width, screen_height))
     font = pygame.font.Font(None, 24)
@@ -163,10 +169,13 @@ def import_map_from_json(file_path):
         for y in range(grid_height):
             for x in range(grid_width):
                 packed_value = map_data["tiles"][y * grid_width + x]
-                tile_type = packed_value & 0b111  # Extraire les 3 bits de poids faible
-                tile_height = packed_value >> 3  # Décalage pour extraire la hauteur
+                tile_type = packed_value & 0b111  # Extraire les 3 bits de poids faible pour le type
+                tile_rotation = (packed_value >> 3) & 0b11  # Extraire les 2 bits pour la rotation
+                tile_height = packed_value >> 5  # Décalage pour extraire la hauteur
+
                 level[y][x] = tile_type
                 height_map[y][x] = tile_height
+                rotation_map[y][x] = tile_rotation * 90  # Convertir l'index en degrés
 
         print(f"Carte importée avec succès depuis {file_path}")
     except FileNotFoundError:
@@ -189,6 +198,7 @@ while running:
             if tile_index != -1:
                 draw_tile_with_shadow(tiles[tile_index], x * tile_size, y * tile_size, rotation_map[y][x])
                 draw_rotation_indicator(x * tile_size, y * tile_size, rotation_map[y][x])
+                draw_height_indicator(x * tile_size, y * tile_size, height_map[y][x])  # Ajouter l'indicateur de hauteur
 
     # Affichage de la grille avec projection isométrique
     for y in range(grid_height):
@@ -239,8 +249,8 @@ while running:
                         print(f"Hauteur sélectionnée: {current_height}")
 
                 # Vérifier si le bouton de rotation est cliqué
-                rotation_button_y = screen_height - 100
-                if screen_width - ui_width + 10 <= mouse_x <= screen_width - ui_width + 190 and rotation_button_y <= mouse_y <= rotation_button_y + 30:
+                rotation_button_y = screen_height - 125  # Position verticale du bouton de rotation
+                if screen_width - ui_width + 65 <= mouse_x <= screen_width - ui_width + 195 and rotation_button_y <= mouse_y <= rotation_button_y + 30:
                     current_rotation = (current_rotation + 90) % 360
                     print(f"Rotation actuelle: {current_rotation}°")
 
