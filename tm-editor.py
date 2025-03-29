@@ -14,6 +14,10 @@ max_height = 3  # Hauteur max pour les tiles
 height_offset = 10  # Décalage en hauteur
 ui_width = 200  # Largeur de la zone UI
 
+# Ajuster les dimensions de la fenêtre
+screen = pygame.display.set_mode((screen_width, screen_height))
+pygame.display.set_caption("Tilemap Editor - Grilles réduites")
+
 # Couleurs
 WHITE = (255, 255, 255)
 GRAY = (200, 200, 200)
@@ -37,10 +41,7 @@ current_tile = 0
 current_height = 0
 current_rotation = 0  # Rotation actuelle en degrés (0, 90, 180, 270)
 
-# Fenêtre
-screen = pygame.display.set_mode((screen_width, screen_height))
-pygame.display.set_caption("Tilemap Editor - Isométrique, Cartésien et UI")
-
+# Ajuster la projection isométrique
 iso_grid_height = grid_height * tile_size // 4
 center_offset_y = (screen_height - iso_grid_height) // 2
 
@@ -214,7 +215,7 @@ while running:
     draw_ui()
 
     for event in pygame.event.get():
-        if event.type == pygame.QUIT:
+        if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
             running = False
 
         elif event.type == pygame.MOUSEBUTTONDOWN:
